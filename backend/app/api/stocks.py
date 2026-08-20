@@ -6,6 +6,7 @@ import requests
 import io
 import re
 import bs4
+import urllib.parse
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List
 
@@ -221,7 +222,8 @@ def search_stocks(
     q: str = Query("", description="Stock code or name"),
     market: str = Query("all", description="Market filter: all, kr, or us")
 ):
-    query = q.strip()
+    unquoted_q = urllib.parse.unquote(q or "")
+    query = unquoted_q.strip()
     query_lower = query.lower()
     m_filter = market.strip().lower()
     
@@ -268,8 +270,9 @@ def search_stocks(
 
 @router.get("/stock/{code}")
 def get_stock_chart_data(code: str, period: str = Query("1d", enum=["1d", "1w", "1m"])):
-    ticker, name, market, currency = resolve_ticker(code)
-    df, _, resolved_ticker = get_ohlcv_dataframe(code)
+    code_clean = urllib.parse.unquote(code).strip()
+    ticker, name, market, currency = resolve_ticker(code_clean)
+    df, _, resolved_ticker = get_ohlcv_dataframe(code_clean)
 
     # Resample for week or month if requested
     if period == "1w":
@@ -282,7 +285,7 @@ def get_stock_chart_data(code: str, period: str = Query("1d", enum=["1d", "1w", 
 
     return {
         "stock_info": {
-            "code": code,
+            "code": code_clean,
             "ticker": resolved_ticker,
             "name": name,
             "market": market,
@@ -294,8 +297,9 @@ def get_stock_chart_data(code: str, period: str = Query("1d", enum=["1d", "1w", 
 
 @router.get("/analyze/{code}")
 def analyze_stock(code: str):
-    ticker, name, market, currency = resolve_ticker(code)
-    df, info, resolved_ticker = get_ohlcv_dataframe(code)
+    code_clean = urllib.parse.unquote(code).strip()
+    ticker, name, market, currency = resolve_ticker(code_clean)
+    df, info, resolved_ticker = get_ohlcv_dataframe(code_clean)
 
     tech_data = calculate_technical_indicators(df)
     latest_price = float(df['Close'].iloc[-1])
