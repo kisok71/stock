@@ -257,11 +257,11 @@ def search_stocks(
                 if item["code"] not in [m["code"] for m in matches]:
                     matches.append(item)
                 
-    # 4. Dynamic fallback if no matches found yet
+    # 4. Dynamic fallback if no matches found in filtered list
     if not matches and len(query) >= 1:
-        if query.isdigit() and m_filter in ["all", "kr"]:
+        if query.isdigit():
             matches.append({"code": query, "ticker": f"{query}.KS", "name": f"종목 ({query})", "market": "KOSPI", "currency": "KRW"})
-        elif not query.isdigit() and m_filter in ["all", "us"]:
+        else:
             matches.append({"code": query.upper(), "ticker": query.upper(), "name": query.upper(), "market": "NASDAQ", "currency": "USD"})
             
     return {"results": matches[:15]}

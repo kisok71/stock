@@ -51,10 +51,34 @@ export const Header: React.FC<HeaderProps> = ({
     setIsOpen(false);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && results.length > 0) {
-      e.preventDefault();
+  const handleSubmit = (targetStock?: StockSearchResult) => {
+    if (targetStock) {
+      handleSelect(targetStock);
+      return;
+    }
+    
+    const q = query.trim();
+    if (!q) return;
+
+    if (results.length > 0) {
       handleSelect(results[0]);
+    } else {
+      const isDigits = /^\d+$/.test(q);
+      const fallback: StockSearchResult = {
+        code: q.toUpperCase(),
+        ticker: isDigits ? `${q}.KS` : q.toUpperCase(),
+        name: q,
+        market: isDigits ? 'KOSPI' : 'NASDAQ',
+        currency: isDigits ? 'KRW' : 'USD'
+      };
+      handleSelect(fallback);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSubmit();
     }
   };
 
@@ -133,8 +157,8 @@ export const Header: React.FC<HeaderProps> = ({
                 </button>
               </div>
 
-              {/* Input Box */}
-              <div className="relative">
+              {/* Input Box with Clickable Search Button */}
+              <div className="relative flex items-center">
                 <input
                   type="text"
                   placeholder={
@@ -148,9 +172,16 @@ export const Header: React.FC<HeaderProps> = ({
                   onChange={(e) => setQuery(e.target.value)}
                   onFocus={() => setIsOpen(true)}
                   onKeyDown={handleKeyDown}
-                  className="w-full bg-dark-900 border border-dark-600 rounded-lg pl-9 pr-4 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+                  className="w-full bg-dark-900 border border-dark-600 rounded-lg pl-9 pr-10 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
                 />
-                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                <button
+                  type="button"
+                  onClick={() => handleSubmit()}
+                  className="absolute left-2.5 p-1 text-gray-400 hover:text-blue-400 transition-colors"
+                  title="검색 실행"
+                >
+                  <Search className="w-4 h-4" />
+                </button>
               </div>
             </div>
 
