@@ -290,7 +290,9 @@ def search_stocks(
     # 4. Dynamic fallback if no matches found in filtered list
     if not matches and len(query) >= 1:
         if query.isdigit():
-            matches.append({"code": query, "ticker": f"{query}.KS", "name": f"종목 ({query})", "market": "KOSPI", "currency": "KRW"})
+            k_code = query.zfill(6)
+            off_name = fetch_naver_stock_name(k_code)
+            matches.append({"code": k_code, "ticker": f"{k_code}.KS", "name": off_name, "market": "KOSPI", "currency": "KRW"})
         else:
             matches.append({"code": query.upper(), "ticker": query.upper(), "name": query.upper(), "market": "NASDAQ", "currency": "USD"})
             

@@ -29,6 +29,15 @@ export const App: React.FC = () => {
     try {
       const res = await getStockChartData(stock.code, timeframe);
       setIndicators(res.indicators);
+      if (res.stock_info && res.stock_info.name) {
+        setCurrentStock(prev => ({
+          ...prev,
+          name: res.stock_info.name,
+          market: res.stock_info.market || prev.market,
+          currency: res.stock_info.currency || prev.currency,
+          ticker: res.stock_info.ticker || prev.ticker
+        }));
+      }
     } catch (err) {
       console.error('Failed to load chart data:', err);
     } finally {
