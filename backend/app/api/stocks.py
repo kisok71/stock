@@ -143,18 +143,24 @@ def get_ohlcv_dataframe(code: str) -> tuple[pd.DataFrame, dict, str]:
     code_clean = code.strip()
     ticker, name, market, currency = resolve_ticker(code_clean)
     
-    # 1. If Korean numeric stock code, fetch directly from Naver Finance
-    if code_clean.isdigit():
-        df_naver = fetch_naver_stock_ohlcv(code_clean, pages=15)
+    # Extract 6-digit stock code from ticker or code_clean if Korean stock
+    digits_match = re.search(r"\d{6}", ticker) or re.search(r"\d{6}", code_clean)
+    
+    # 1. If 6-digit Korean stock code exists, fetch directly from Naver Finance
+    if digits_match:
+        k_code = digits_match.group(0)
+        df_naver = fetch_naver_stock_ohlcv(k_code, pages=15)
         if not df_naver.empty and len(df_naver) >= 5:
-            return df_naver, {}, ticker
+            resolved_t = f"{k_code}.KS" if market == "KOSPI" else f"{k_code}.KQ"
+            return df_naver, {}, resolved_t
 
     # 2. Try yfinance for US/International stocks or fallback
     df_yf = pd.DataFrame()
     info = {}
     tickers_to_try = [ticker]
-    if code_clean.isdigit():
-        tickers_to_try = [f"{code_clean}.KS", f"{code_clean}.KQ"]
+    digits_code = digits_match.group(0) if digits_match else None
+    if digits_code:
+        tickers_to_try = [f"{digits_code}.KS", f"{digits_code}.KQ"]
 
     for t in tickers_to_try:
         try:
@@ -175,24 +181,40 @@ def get_ohlcv_dataframe(code: str) -> tuple[pd.DataFrame, dict, str]:
     return generate_mock_ohlcv(code_clean), {}, ticker
 
 def resolve_ticker(code: str) -> tuple[str, str, str, str]:
-    code_clean = code.strip().upper()
+    code_clean = code.strip()
+    code_upper = code_clean.upper()
     
-    # 1. Check popular list first
+    # 1. Check popular list first (exact code, ticker, or name)
     for item in POPULAR_STOCKS:
-        if item["code"] == code_clean or item["ticker"] == code_clean or item["name"].lower() == code_clean.lower():
+        if (item["code"] == code_upper or 
+            item["ticker"] == code_upper or 
+            item["name"].lower() == code_clean.lower() or
+            code_clean in item["name"]):
             return item["ticker"], item["name"], item["market"], item.get("currency", "KRW")
             
     # 2. Check KRX Master list
     krx_list = load_krx_stock_master()
+    # 2-a. Exact code or exact name match
     for item in krx_list:
         if item["code"] == code_clean or item["name"] == code_clean:
             return item["ticker"], item["name"], item["market"], "KRW"
+            
+    # 2-b. Partial name match in KRX Master list (e.g. '현대차' -> '현대자동차', '카카오' -> '카카오')
+    for item in krx_list:
+        if code_clean and (code_clean in item["name"] or item["name"] in code_clean):
+            return item["ticker"], item["name"], item["market"], "KRW"
     
-    # 3. Numeric code fallback
+    # 3. Numeric code fallback (e.g. '005380', '005930.KS')
+    numeric_match = re.search(r"\d{6}", code_clean)
+    if numeric_match:
+        digits = numeric_match.group(0)
+        return f"{digits}.KS", f"종목 ({digits})", "KOSPI", "KRW"
+
     if code_clean.isdigit():
-        return f"{code_clean}.KS", f"종목 ({code_clean})", "KOSPI", "KRW"
+        digits = code_clean.zfill(6)
+        return f"{digits}.KS", f"종목 ({digits})", "KOSPI", "KRW"
         
-    return code_clean, code_clean, "NASDAQ", "USD"
+    return code_upper, code_upper, "NASDAQ", "USD"
 
 @router.get("/search")
 def search_stocks(
