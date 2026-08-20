@@ -41,10 +41,23 @@ POPULAR_STOCKS = [
 # Cache for Korean Stock Master List (Loaded on demand or startup)
 KRX_STOCKS_CACHE: List[Dict[str, str]] = []
 
+import os
+import json
+
 def load_krx_stock_master() -> List[Dict[str, str]]:
     global KRX_STOCKS_CACHE
     if KRX_STOCKS_CACHE:
         return KRX_STOCKS_CACHE
+
+    json_path = os.path.join(os.path.dirname(__file__), "krx_stocks_master.json")
+    if os.path.exists(json_path):
+        try:
+            with open(json_path, "r", encoding="utf-8") as f:
+                KRX_STOCKS_CACHE = json.load(f)
+                if KRX_STOCKS_CACHE and len(KRX_STOCKS_CACHE) > 100:
+                    return KRX_STOCKS_CACHE
+        except Exception as e:
+            print(f"Error reading local krx_stocks_master.json: {e}")
 
     try:
         url = 'https://kind.krx.co.kr/corpgeneral/corpList.do?method=download'
@@ -55,7 +68,6 @@ def load_krx_stock_master() -> List[Dict[str, str]]:
             for _, row in df.iterrows():
                 code = str(row.get('종목코드', '')).zfill(6)
                 name = str(row.get('회사명', '')).strip()
-                # Market heuristic from KRX KIND output
                 market = "KOSDAQ" if "코스닥" in str(row.get('시장구분', '')) else "KOSPI"
                 suffix = ".KQ" if market == "KOSDAQ" else ".KS"
                 items.append({
@@ -281,22 +293,35 @@ def search_stocks(
     if m_filter in ["all", "kr"]:
         krx_list = load_krx_stock_master()
         for item in krx_list:
-            if len(matches) >= 15:
+            if len(matches) >= 25:
                 break
-            if query_lower in item["name"].lower() or query == item["code"]:
+            if query_lower in item["name"].lower() or query == item["code"] or query in item["code"]:
                 if item["code"] not in [m["code"] for m in matches]:
                     matches.append(item)
                 
     # 4. Dynamic fallback if no matches found in filtered list
     if not matches and len(query) >= 1:
-        if query.isdigit():
-            k_code = query.zfill(6)
-            off_name = fetch_naver_stock_name(k_code)
-            matches.append({"code": k_code, "ticker": f"{k_code}.KS", "name": off_name, "market": "KOSPI", "currency": "KRW"})
+        is_korean_text = bool(re.search(r"[\uac00-\ud7a3]", query))
+        if query.isdigit() or is_korean_text or m_filter == "kr":
+            k_code = query.zfill(6) if query.isdigit() else query
+            off_name = fetch_naver_stock_name(k_code) if query.isdigit() else query
+            matches.append({
+                "code": k_code, 
+                "ticker": f"{k_code}.KS" if query.isdigit() else k_code, 
+                "name": off_name, 
+                "market": "KOSPI", 
+                "currency": "KRW"
+            })
         else:
-            matches.append({"code": query.upper(), "ticker": query.upper(), "name": query.upper(), "market": "NASDAQ", "currency": "USD"})
+            matches.append({
+                "code": query.upper(), 
+                "ticker": query.upper(), 
+                "name": query.upper(), 
+                "market": "NASDAQ", 
+                "currency": "USD"
+            })
             
-    return {"results": matches[:15]}
+    return {"results": matches[:25]}
 
 @router.get("/stock/{code}")
 def get_stock_chart_data(code: str, period: str = Query("1d", enum=["1d", "1w", "1m"])):
