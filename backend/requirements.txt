@@ -3,8 +3,8 @@ uvicorn
 pandas
 numpy
 yfinance
-ta
 google-genai
 requests
 python-dotenv
 pydantic
+beautifulsoup4

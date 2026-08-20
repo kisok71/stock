@@ -5,6 +5,7 @@ import yfinance as yf
 import requests
 import io
 import re
+import bs4
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List
 
@@ -94,6 +95,85 @@ def generate_mock_ohlcv(symbol: str, count: int = 250) -> pd.DataFrame:
     }, index=dates)
     return df
 
+def fetch_naver_stock_ohlcv(code: str, pages: int = 15) -> pd.DataFrame:
+    """Fetches exact real-time Korean market OHLCV data from Naver Finance."""
+    clean_code = code.strip().zfill(6)
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
+    rows = []
+    
+    for page in range(1, pages + 1):
+        try:
+            url = f"https://finance.naver.com/item/sise_day.naver?code={clean_code}&page={page}"
+            r = requests.get(url, headers=headers, timeout=4)
+            if r.status_code != 200:
+                continue
+            soup = bs4.BeautifulSoup(r.text, 'html.parser')
+            trs = soup.find_all('tr', {'onmouseover': 'mouseOver(this)'})
+            if not trs:
+                break
+            for tr in trs:
+                tds = [td.text.strip() for td in tr.find_all('td')]
+                if len(tds) == 7:
+                    dt_str, c_str, diff, o_str, h_str, l_str, v_str = tds
+                    if not dt_str:
+                        continue
+                    try:
+                        dt = pd.to_datetime(dt_str)
+                        c = float(c_str.replace(',', ''))
+                        o = float(o_str.replace(',', ''))
+                        h = float(h_str.replace(',', ''))
+                        l = float(l_str.replace(',', ''))
+                        v = int(v_str.replace(',', ''))
+                        if o > 0 and c > 0:
+                            rows.append({'Date': dt, 'Open': o, 'High': h, 'Low': l, 'Close': c, 'Volume': v})
+                    except (ValueError, TypeError):
+                        continue
+        except Exception as e:
+            print(f"Naver fetch error on page {page}: {e}")
+            continue
+
+    if not rows:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(rows).set_index('Date').sort_index()
+    df = df[~df.index.duplicated(keep='first')]
+    return df
+
+def get_ohlcv_dataframe(code: str) -> tuple[pd.DataFrame, dict, str]:
+    code_clean = code.strip()
+    ticker, name, market = resolve_ticker(code_clean)
+    
+    # 1. If Korean numeric stock code, fetch directly from Naver Finance
+    if code_clean.isdigit():
+        df_naver = fetch_naver_stock_ohlcv(code_clean, pages=15)
+        if not df_naver.empty and len(df_naver) >= 5:
+            return df_naver, {}, ticker
+
+    # 2. Try yfinance for US/International stocks or fallback
+    df_yf = pd.DataFrame()
+    info = {}
+    tickers_to_try = [ticker]
+    if code_clean.isdigit():
+        tickers_to_try = [f"{code_clean}.KS", f"{code_clean}.KQ"]
+
+    for t in tickers_to_try:
+        try:
+            yf_ticker = yf.Ticker(t)
+            df_temp = yf_ticker.history(period="1y")
+            if not df_temp.empty and len(df_temp) >= 5:
+                df_yf = df_temp
+                info = yf_ticker.info or {}
+                ticker = t
+                break
+        except Exception:
+            continue
+
+    if not df_yf.empty and len(df_yf) >= 5:
+        return df_yf, info, ticker
+
+    # 3. Fallback mock generator
+    return generate_mock_ohlcv(code_clean), {}, ticker
+
 def resolve_ticker(code: str) -> tuple[str, str, str]:
     code_clean = code.strip().upper()
     
@@ -150,26 +230,7 @@ def search_stocks(q: str = Query("", description="Stock code or name")):
 @router.get("/stock/{code}")
 def get_stock_chart_data(code: str, period: str = Query("1d", enum=["1d", "1w", "1m"])):
     ticker, name, market = resolve_ticker(code)
-    
-    # Attempt yfinance fetch with fallback suffixes (.KS and .KQ)
-    df = pd.DataFrame()
-    tickers_to_try = [ticker]
-    if code.isdigit():
-        tickers_to_try = [f"{code}.KS", f"{code}.KQ"]
-
-    for t in tickers_to_try:
-        try:
-            yf_ticker = yf.Ticker(t)
-            df_temp = yf_ticker.history(period="1y")
-            if not df_temp.empty and len(df_temp) >= 20:
-                df = df_temp
-                ticker = t
-                break
-        except Exception:
-            continue
-
-    if df.empty or len(df) < 20:
-        df = generate_mock_ohlcv(code)
+    df, _, resolved_ticker = get_ohlcv_dataframe(code)
 
     # Resample for week or month if requested
     if period == "1w":
@@ -183,7 +244,7 @@ def get_stock_chart_data(code: str, period: str = Query("1d", enum=["1d", "1w", 
     return {
         "stock_info": {
             "code": code,
-            "ticker": ticker,
+            "ticker": resolved_ticker,
             "name": name,
             "market": market,
             "current_price": round(latest_price, 2)
@@ -194,27 +255,7 @@ def get_stock_chart_data(code: str, period: str = Query("1d", enum=["1d", "1w", 
 @router.get("/analyze/{code}")
 def analyze_stock(code: str):
     ticker, name, market = resolve_ticker(code)
-    
-    df = pd.DataFrame()
-    info = {}
-    tickers_to_try = [ticker]
-    if code.isdigit():
-        tickers_to_try = [f"{code}.KS", f"{code}.KQ"]
-
-    for t in tickers_to_try:
-        try:
-            yf_ticker = yf.Ticker(t)
-            df_temp = yf_ticker.history(period="1y")
-            if not df_temp.empty and len(df_temp) >= 20:
-                df = df_temp
-                info = yf_ticker.info or {}
-                ticker = t
-                break
-        except Exception:
-            continue
-
-    if df.empty or len(df) < 20:
-        df = generate_mock_ohlcv(code)
+    df, info, resolved_ticker = get_ohlcv_dataframe(code)
 
     tech_data = calculate_technical_indicators(df)
     latest_price = float(df['Close'].iloc[-1])
@@ -238,3 +279,4 @@ def analyze_stock(code: str):
         "report": report,
         "indicators": tech_data
     }
+
