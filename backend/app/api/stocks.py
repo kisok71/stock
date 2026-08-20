@@ -141,7 +141,7 @@ def fetch_naver_stock_ohlcv(code: str, pages: int = 15) -> pd.DataFrame:
 
 def get_ohlcv_dataframe(code: str) -> tuple[pd.DataFrame, dict, str]:
     code_clean = code.strip()
-    ticker, name, market = resolve_ticker(code_clean)
+    ticker, name, market, currency = resolve_ticker(code_clean)
     
     # 1. If Korean numeric stock code, fetch directly from Naver Finance
     if code_clean.isdigit():
