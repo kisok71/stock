@@ -38,10 +38,10 @@ export const Header: React.FC<HeaderProps> = ({
     const timer = setTimeout(async () => {
       const res = await searchStocks(query, selectedMarket);
       setResults(res);
-      if (query.trim()) {
+      if (document.activeElement === searchRef.current?.querySelector('input')) {
         setIsOpen(true);
       }
-    }, 150);
+    }, 100);
     return () => clearTimeout(timer);
   }, [query, selectedMarket]);
 
@@ -49,6 +49,13 @@ export const Header: React.FC<HeaderProps> = ({
     onSelectStock(stock);
     setQuery('');
     setIsOpen(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && results.length > 0) {
+      e.preventDefault();
+      handleSelect(results[0]);
+    }
   };
 
   const getOpinionBadgeColor = (opinion?: string) => {
@@ -89,7 +96,7 @@ export const Header: React.FC<HeaderProps> = ({
               <div className="flex items-center gap-1 bg-dark-900/90 p-1 rounded-lg border border-dark-700/80 text-xs">
                 <button
                   type="button"
-                  onClick={() => setSelectedMarket('kr')}
+                  onClick={() => { setSelectedMarket('kr'); setIsOpen(true); }}
                   className={`flex-1 py-1 px-2.5 rounded-md font-medium transition-all flex items-center justify-center gap-1.5 ${
                     selectedMarket === 'kr'
                       ? 'bg-blue-600 text-white shadow-sm font-semibold'
@@ -102,7 +109,7 @@ export const Header: React.FC<HeaderProps> = ({
 
                 <button
                   type="button"
-                  onClick={() => setSelectedMarket('us')}
+                  onClick={() => { setSelectedMarket('us'); setIsOpen(true); }}
                   className={`flex-1 py-1 px-2.5 rounded-md font-medium transition-all flex items-center justify-center gap-1.5 ${
                     selectedMarket === 'us'
                       ? 'bg-indigo-600 text-white shadow-sm font-semibold'
@@ -115,7 +122,7 @@ export const Header: React.FC<HeaderProps> = ({
 
                 <button
                   type="button"
-                  onClick={() => setSelectedMarket('all')}
+                  onClick={() => { setSelectedMarket('all'); setIsOpen(true); }}
                   className={`py-1 px-2.5 rounded-md font-medium transition-all flex items-center justify-center gap-1 ${
                     selectedMarket === 'all'
                       ? 'bg-dark-700 text-gray-100 border border-dark-600 font-semibold'
@@ -139,7 +146,8 @@ export const Header: React.FC<HeaderProps> = ({
                   }
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  onFocus={() => { if (query.trim()) setIsOpen(true); }}
+                  onFocus={() => setIsOpen(true)}
+                  onKeyDown={handleKeyDown}
                   className="w-full bg-dark-900 border border-dark-600 rounded-lg pl-9 pr-4 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
                 />
                 <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
@@ -148,9 +156,9 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Dropdown Results */}
             {isOpen && results.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-dark-800 border border-dark-600 rounded-lg shadow-xl overflow-hidden z-50 max-h-64 overflow-y-auto">
-                <div className="px-3 py-1.5 bg-dark-900/60 border-b border-dark-700 text-[10px] text-gray-400 font-semibold flex items-center justify-between">
-                  <span>검색 결과 목록</span>
+              <div className="absolute top-full left-0 right-0 mt-1 bg-dark-800 border border-dark-600 rounded-lg shadow-2xl overflow-hidden z-[100] max-h-72 overflow-y-auto">
+                <div className="px-3 py-1.5 bg-dark-900/90 border-b border-dark-700 text-[10px] text-gray-400 font-semibold flex items-center justify-between sticky top-0 z-10 backdrop-blur-md">
+                  <span>검색 추천 종목 (클릭하여 선택)</span>
                   <span>{selectedMarket === 'kr' ? '🇰🇷 한국주식 (원화)' : selectedMarket === 'us' ? '🇺🇸 미국주식 (달러)' : '🌐 전체 시장'}</span>
                 </div>
                 {results.map((stock) => {
@@ -158,15 +166,19 @@ export const Header: React.FC<HeaderProps> = ({
                   return (
                     <button
                       key={stock.code}
-                      onClick={() => handleSelect(stock)}
-                      className="w-full px-4 py-2.5 text-left text-sm hover:bg-dark-700 flex items-center justify-between border-b border-dark-700/50 last:border-0 transition-colors"
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleSelect(stock);
+                      }}
+                      className="w-full px-4 py-2.5 text-left text-sm hover:bg-blue-600/20 active:bg-blue-600/30 flex items-center justify-between border-b border-dark-700/50 last:border-0 transition-colors cursor-pointer"
                     >
                       <div>
-                        <span className="font-semibold text-white">{stock.name}</span>
-                        <span className="text-xs text-gray-400 ml-2">({stock.code})</span>
+                        <span className="font-bold text-white group-hover:text-blue-400">{stock.name}</span>
+                        <span className="text-xs text-gray-400 ml-2 font-mono">({stock.code})</span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-semibold ${
+                        <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold ${
                           isKR ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                         }`}>
                           {stock.market} ({isKR ? '원화 ₩' : '달러 $'})
