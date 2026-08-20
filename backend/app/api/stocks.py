@@ -5,7 +5,7 @@ import yfinance as yf
 import requests
 import io
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List
 
 from app.engine.indicators import calculate_technical_indicators
@@ -15,6 +15,7 @@ from app.engine.news_crawler import fetch_stock_news_and_disclosures
 from app.engine.ai_report import generate_ai_stock_report
 
 router = APIRouter()
+KST = timezone(timedelta(hours=9))
 
 # Popular Default Stocks
 POPULAR_STOCKS = [
@@ -71,7 +72,8 @@ def load_krx_stock_master() -> List[Dict[str, str]]:
 def generate_mock_ohlcv(symbol: str, count: int = 250) -> pd.DataFrame:
     """Generates clean historical OHLCV data if live network data is unavailable."""
     base_price = 78000.0 if symbol.replace(".KS", "").replace(".KQ", "").isdigit() else 185.0
-    dates = pd.date_range(end=datetime.now(), periods=count, freq="B")
+    now_kst = datetime.now(timezone.utc).astimezone(KST)
+    dates = pd.date_range(end=now_kst, periods=count, freq="B")
     
     np.random.seed(abs(hash(symbol)) % 10000)
     returns = np.random.normal(0.0005, 0.018, count)

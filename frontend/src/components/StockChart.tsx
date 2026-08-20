@@ -99,30 +99,30 @@ export const StockChart: React.FC<StockChartProps> = ({
 
     // Moving Averages
     if (showMA5) {
-      const ma5Series = chart.addLineSeries({ color: '#F43F5E', lineWidth: 1, title: 'MA5' });
+      const ma5Series = chart.addLineSeries({ color: '#F43F5E', lineWidth: 1, lastValueVisible: false });
       ma5Series.setData(dates.map((time, i) => ({ time, value: ma5[i] })).filter((d) => d.value !== null) as any);
     }
     if (showMA20) {
-      const ma20Series = chart.addLineSeries({ color: '#F0B90B', lineWidth: 1, title: 'MA20' });
+      const ma20Series = chart.addLineSeries({ color: '#F0B90B', lineWidth: 1, lastValueVisible: false });
       ma20Series.setData(dates.map((time, i) => ({ time, value: ma20[i] })).filter((d) => d.value !== null) as any);
     }
     if (showMA60) {
-      const ma60Series = chart.addLineSeries({ color: '#2962FF', lineWidth: 1, title: 'MA60' });
+      const ma60Series = chart.addLineSeries({ color: '#2962FF', lineWidth: 1, lastValueVisible: false });
       ma60Series.setData(dates.map((time, i) => ({ time, value: ma60[i] })).filter((d) => d.value !== null) as any);
     }
     if (showMA120) {
-      const ma120Series = chart.addLineSeries({ color: '#E040FB', lineWidth: 1, title: 'MA120' });
+      const ma120Series = chart.addLineSeries({ color: '#E040FB', lineWidth: 1, lastValueVisible: false });
       ma120Series.setData(dates.map((time, i) => ({ time, value: ma120[i] })).filter((d) => d.value !== null) as any);
     }
     if (showMA240) {
-      const ma240Series = chart.addLineSeries({ color: '#00E676', lineWidth: 1, title: 'MA240' });
+      const ma240Series = chart.addLineSeries({ color: '#00E676', lineWidth: 1, lastValueVisible: false });
       ma240Series.setData(dates.map((time, i) => ({ time, value: ma240[i] })).filter((d) => d.value !== null) as any);
     }
 
     // Bollinger Bands
     if (showBB) {
-      const bbUpperSeries = chart.addLineSeries({ color: 'rgba(255, 255, 255, 0.3)', lineWidth: 1, lineStyle: 2, title: 'BB Upper' });
-      const bbLowerSeries = chart.addLineSeries({ color: 'rgba(255, 255, 255, 0.3)', lineWidth: 1, lineStyle: 2, title: 'BB Lower' });
+      const bbUpperSeries = chart.addLineSeries({ color: 'rgba(255, 255, 255, 0.3)', lineWidth: 1, lineStyle: 2, lastValueVisible: false });
+      const bbLowerSeries = chart.addLineSeries({ color: 'rgba(255, 255, 255, 0.3)', lineWidth: 1, lineStyle: 2, lastValueVisible: false });
       bbUpperSeries.setData(dates.map((time, i) => ({ time, value: bb_upper[i] })).filter((d) => d.value !== null) as any);
       bbLowerSeries.setData(dates.map((time, i) => ({ time, value: bb_lower[i] })).filter((d) => d.value !== null) as any);
     }
@@ -244,8 +244,44 @@ export const StockChart: React.FC<StockChartProps> = ({
 
       {/* Main Chart Canvas Container */}
       <div className="relative w-full h-[420px] rounded-lg overflow-hidden border border-dark-700">
+        {/* Top-Left Floating Legend Overlay (Replaces right-side price labels) */}
+        {latest && (
+          <div className="absolute top-2 left-2 z-10 flex flex-wrap items-center gap-2 px-2.5 py-1 bg-dark-900/80 backdrop-blur-md rounded border border-dark-700/80 text-[11px] font-mono pointer-events-none">
+            {showMA5 && latest.ma5 && (
+              <span className="flex items-center gap-1 text-rose-400 font-semibold">
+                <span className="w-2 h-2 rounded-full bg-rose-500"></span> 5일선: {latest.ma5.toLocaleString()}
+              </span>
+            )}
+            {showMA20 && latest.ma20 && (
+              <span className="flex items-center gap-1 text-amber-400 font-semibold">
+                <span className="w-2 h-2 rounded-full bg-amber-500"></span> 20일선: {latest.ma20.toLocaleString()}
+              </span>
+            )}
+            {showMA60 && latest.ma60 && (
+              <span className="flex items-center gap-1 text-blue-400 font-semibold">
+                <span className="w-2 h-2 rounded-full bg-blue-500"></span> 60일선: {latest.ma60.toLocaleString()}
+              </span>
+            )}
+            {showMA120 && latest.ma120 && (
+              <span className="flex items-center gap-1 text-purple-400 font-semibold">
+                <span className="w-2 h-2 rounded-full bg-purple-500"></span> 120일선: {latest.ma120.toLocaleString()}
+              </span>
+            )}
+            {showMA240 && latest.ma240 && (
+              <span className="flex items-center gap-1 text-emerald-400 font-semibold">
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span> 240일선: {latest.ma240.toLocaleString()}
+              </span>
+            )}
+            {showBB && latest.bb_upper && latest.bb_lower && (
+              <span className="flex items-center gap-1 text-gray-300 font-semibold">
+                <span className="w-2 h-2 rounded-full bg-gray-400"></span> BB: {latest.bb_lower.toLocaleString()} ~ {latest.bb_upper.toLocaleString()}
+              </span>
+            )}
+          </div>
+        )}
+
         {loading && (
-          <div className="absolute inset-0 bg-dark-900/80 backdrop-blur-sm z-10 flex items-center justify-center text-sm text-gray-300 font-medium">
+          <div className="absolute inset-0 bg-dark-900/80 backdrop-blur-sm z-20 flex items-center justify-center text-sm text-gray-300 font-medium">
             차트 및 지표 데이터를 로딩 중입니다...
           </div>
         )}
