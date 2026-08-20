@@ -181,6 +181,32 @@ def get_ohlcv_dataframe(code: str) -> tuple[pd.DataFrame, dict, str]:
     # 3. Fallback mock generator
     return generate_mock_ohlcv(code_clean), {}, ticker
 
+NAVER_NAME_CACHE: Dict[str, str] = {}
+
+def fetch_naver_stock_name(code: str) -> str:
+    """Scrapes exact official Korean stock name from Naver Finance."""
+    clean_code = code.strip().zfill(6)
+    if clean_code in NAVER_NAME_CACHE:
+        return NAVER_NAME_CACHE[clean_code]
+        
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
+    try:
+        url = f"https://finance.naver.com/item/main.naver?code={clean_code}"
+        r = requests.get(url, headers=headers, timeout=3)
+        if r.status_code == 200:
+            soup = bs4.BeautifulSoup(r.text, 'html.parser')
+            wrap = soup.find('div', {'class': 'wrap_company'})
+            if wrap and wrap.find('h2'):
+                a_tag = wrap.find('h2').find('a')
+                name = a_tag.text.strip() if a_tag else wrap.find('h2').text.strip()
+                if name:
+                    NAVER_NAME_CACHE[clean_code] = name
+                    return name
+    except Exception as e:
+        print(f"Naver stock name fetch warning for {code}: {e}")
+        
+    return f"종목 ({clean_code})"
+
 def resolve_ticker(code: str) -> tuple[str, str, str, str]:
     code_clean = code.strip()
     code_upper = code_clean.upper()
@@ -202,18 +228,20 @@ def resolve_ticker(code: str) -> tuple[str, str, str, str]:
             
     # 2-b. Partial name match in KRX Master list (e.g. '현대차' -> '현대자동차', '카카오' -> '카카오')
     for item in krx_list:
-        if code_clean and (code_clean in item["name"] or item["name"] in code_clean):
+        if code_clean and not code_clean.isdigit() and (code_clean in item["name"] or item["name"] in code_clean):
             return item["ticker"], item["name"], item["market"], "KRW"
     
-    # 3. Numeric code fallback (e.g. '005380', '005930.KS')
+    # 3. Numeric code resolution via Naver Finance (e.g. '005935', '005380', '005930.KS')
     numeric_match = re.search(r"\d{6}", code_clean)
     if numeric_match:
         digits = numeric_match.group(0)
-        return f"{digits}.KS", f"종목 ({digits})", "KOSPI", "KRW"
+        official_name = fetch_naver_stock_name(digits)
+        return f"{digits}.KS", official_name, "KOSPI", "KRW"
 
     if code_clean.isdigit():
         digits = code_clean.zfill(6)
-        return f"{digits}.KS", f"종목 ({digits})", "KOSPI", "KRW"
+        official_name = fetch_naver_stock_name(digits)
+        return f"{digits}.KS", official_name, "KOSPI", "KRW"
         
     return code_upper, code_upper, "NASDAQ", "USD"
 
