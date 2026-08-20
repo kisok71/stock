@@ -49,7 +49,15 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ data, stockName, stock
           </div>
           <div className="bg-dark-900/60 p-3 rounded-lg border border-dark-700/60">
             <span className="text-xs text-gray-400 block">현재가</span>
-            <span className="text-lg font-bold text-emerald-400 font-mono mt-0.5 block">{data.current_price}</span>
+            <span className="text-lg font-bold text-emerald-400 font-mono mt-0.5 block">
+              {data.current_price ? (
+                data.current_price.includes('원') || data.current_price.includes('$')
+                  ? data.current_price
+                  : (market === 'KOSPI' || market === 'KOSDAQ' || stockCode.match(/^\d+$/))
+                  ? `${data.current_price} 원`
+                  : `$${data.current_price}`
+              ) : '-'}
+            </span>
           </div>
           <div className="bg-dark-900/60 p-3 rounded-lg border border-dark-700/60">
             <span className="text-xs text-gray-400 block">조회/분석 일시</span>

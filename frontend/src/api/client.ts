@@ -2,9 +2,9 @@ import { StockSearchResult, TechnicalIndicators, AIStockReport } from '../types/
 
 const API_BASE = '/api';
 
-export async function searchStocks(query: string): Promise<StockSearchResult[]> {
+export async function searchStocks(query: string, market: 'all' | 'kr' | 'us' = 'all'): Promise<StockSearchResult[]> {
   try {
-    const res = await fetch(`${API_BASE}/search?q=${encodeURIComponent(query)}`);
+    const res = await fetch(`${API_BASE}/search?q=${encodeURIComponent(query)}&market=${market}`);
     if (!res.ok) throw new Error('Search failed');
     const data = await res.json();
     return data.results || [];

@@ -174,62 +174,79 @@ def get_ohlcv_dataframe(code: str) -> tuple[pd.DataFrame, dict, str]:
     # 3. Fallback mock generator
     return generate_mock_ohlcv(code_clean), {}, ticker
 
-def resolve_ticker(code: str) -> tuple[str, str, str]:
+def resolve_ticker(code: str) -> tuple[str, str, str, str]:
     code_clean = code.strip().upper()
     
     # 1. Check popular list first
     for item in POPULAR_STOCKS:
         if item["code"] == code_clean or item["ticker"] == code_clean or item["name"].lower() == code_clean.lower():
-            return item["ticker"], item["name"], item["market"]
+            return item["ticker"], item["name"], item["market"], item.get("currency", "KRW")
             
     # 2. Check KRX Master list
     krx_list = load_krx_stock_master()
     for item in krx_list:
         if item["code"] == code_clean or item["name"] == code_clean:
-            return item["ticker"], item["name"], item["market"]
+            return item["ticker"], item["name"], item["market"], "KRW"
     
     # 3. Numeric code fallback
     if code_clean.isdigit():
-        return f"{code_clean}.KS", f"종목 ({code_clean})", "KOSPI"
+        return f"{code_clean}.KS", f"종목 ({code_clean})", "KOSPI", "KRW"
         
-    return code_clean, code_clean, "NASDAQ"
+    return code_clean, code_clean, "NASDAQ", "USD"
 
 @router.get("/search")
-def search_stocks(q: str = Query("", description="Stock code or name")):
-    if not q or not q.strip():
-        return {"results": POPULAR_STOCKS[:10]}
-    
+def search_stocks(
+    q: str = Query("", description="Stock code or name"),
+    market: str = Query("all", description="Market filter: all, kr, or us")
+):
     query = q.strip()
     query_lower = query.lower()
+    m_filter = market.strip().lower()
     
+    def is_target_market(item_m: str, item_curr: str) -> bool:
+        if m_filter == "kr":
+            return item_curr == "KRW" or item_m in ["KOSPI", "KOSDAQ"]
+        if m_filter == "us":
+            return item_curr == "USD" or item_m in ["NASDAQ", "NYSE", "AMEX"]
+        return True
+
     matches = []
     
-    # 1. Match in Popular stocks
-    for item in POPULAR_STOCKS:
-        if query_lower in item["code"].lower() or query_lower in item["name"].lower() or query_lower in item["ticker"].lower():
-            matches.append(item)
-            
-    # 2. Match in KRX Master Database (2800+ Korean stocks)
-    krx_list = load_krx_stock_master()
-    for item in krx_list:
-        if len(matches) >= 15:
-            break
-        if query_lower in item["name"].lower() or query == item["code"]:
-            if item["code"] not in [m["code"] for m in matches]:
+    # 1. Default empty query return filtered popular stocks
+    if not query:
+        for item in POPULAR_STOCKS:
+            if is_target_market(item["market"], item.get("currency", "KRW")):
                 matches.append(item)
+        return {"results": matches[:15]}
+
+    # 2. Match in Popular stocks
+    for item in POPULAR_STOCKS:
+        if is_target_market(item["market"], item.get("currency", "KRW")):
+            if query_lower in item["code"].lower() or query_lower in item["name"].lower() or query_lower in item["ticker"].lower():
+                matches.append(item)
+            
+    # 3. Match in KRX Master Database (2800+ Korean stocks)
+    if m_filter in ["all", "kr"]:
+        krx_list = load_krx_stock_master()
+        for item in krx_list:
+            if len(matches) >= 15:
+                break
+            if query_lower in item["name"].lower() or query == item["code"]:
+                if item["code"] not in [m["code"] for m in matches]:
+                    matches.append(item)
                 
-    # 3. Dynamic fallback if no matches found yet
+    # 4. Dynamic fallback if no matches found yet
     if not matches and len(query) >= 1:
-        if query.isdigit():
+        if query.isdigit() and m_filter in ["all", "kr"]:
             matches.append({"code": query, "ticker": f"{query}.KS", "name": f"종목 ({query})", "market": "KOSPI", "currency": "KRW"})
-        else:
+        elif not query.isdigit() and m_filter in ["all", "us"]:
             matches.append({"code": query.upper(), "ticker": query.upper(), "name": query.upper(), "market": "NASDAQ", "currency": "USD"})
             
     return {"results": matches[:15]}
 
 @router.get("/stock/{code}")
 def get_stock_chart_data(code: str, period: str = Query("1d", enum=["1d", "1w", "1m"])):
-    ticker, name, market = resolve_ticker(code)
+    ticker, name, market, currency = resolve_ticker(code)
     df, _, resolved_ticker = get_ohlcv_dataframe(code)
 
     # Resample for week or month if requested
@@ -247,6 +264,7 @@ def get_stock_chart_data(code: str, period: str = Query("1d", enum=["1d", "1w", 
             "ticker": resolved_ticker,
             "name": name,
             "market": market,
+            "currency": currency,
             "current_price": round(latest_price, 2)
         },
         "indicators": indicators
@@ -254,7 +272,7 @@ def get_stock_chart_data(code: str, period: str = Query("1d", enum=["1d", "1w", 
 
 @router.get("/analyze/{code}")
 def analyze_stock(code: str):
-    ticker, name, market = resolve_ticker(code)
+    ticker, name, market, currency = resolve_ticker(code)
     df, info, resolved_ticker = get_ohlcv_dataframe(code)
 
     tech_data = calculate_technical_indicators(df)
