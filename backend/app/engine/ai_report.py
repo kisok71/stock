@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from google import genai
 from google.genai import types
 from app.config import GEMINI_API_KEY
@@ -8,9 +9,10 @@ def generate_ai_stock_report(symbol: str, name: str, market: str, price: float, 
     Generates institutional research report matching all requirements.
     Uses Gemini API if key is provided, or structured algorithmic engine.
     """
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     indicators = tech_data.get("latest", {})
     fibonacci = tech_data.get("fibonacci", {})
-    
+
     # Calculate price levels based on technicals and DCF
     dcf_val = val_data.get("dcf_fair_value", price * 1.2)
     stop_loss = round(price * 0.92, 0 if price > 500 else 2)
@@ -78,9 +80,11 @@ def generate_ai_stock_report(symbol: str, name: str, market: str, price: float, 
             "stock_name": name,
             "stock_code": symbol,
             "market": market,
-            "current_price": price
+            "current_price": price,
+            "analysis_datetime": now_str
         },
         "mandatory_checks": {
+            "analysis_datetime": f"{now_str} (실시간 조회 기준)",
             "current_price": f"{price:,.0f}" if price > 500 else f"${price:,.2f}",
             "market_cap": "약 420조 원" if "005930" in symbol else "약 3.1조 달러",
             "per": f"{val_data.get('per')}배",

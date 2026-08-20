@@ -54,6 +54,7 @@ export interface TechnicalIndicators {
 }
 
 export interface MandatoryChecks {
+  analysis_datetime?: string;
   current_price: string;
   market_cap: string;
   per: string;
@@ -208,6 +209,7 @@ export interface AIStockReport {
     stock_code: string;
     market: string;
     current_price: number;
+    analysis_datetime?: string;
   };
   mandatory_checks: MandatoryChecks;
   chart_analysis: ChartAnalysisReport;

@@ -38,7 +38,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ data, stockName, stock
       {/* Target Stock Overview Header */}
       <div className="bg-gradient-to-r from-dark-800 to-dark-700 p-5 rounded-xl border border-dark-600 shadow-md">
         <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">분석 대상 기본 정보</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-dark-900/60 p-3 rounded-lg border border-dark-700/60">
             <span className="text-xs text-gray-400 block">종목명 (코드)</span>
             <span className="text-lg font-bold text-white mt-0.5 block">{stockName} <span className="text-sm font-mono text-blue-400">({stockCode})</span></span>
@@ -50,6 +50,12 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ data, stockName, stock
           <div className="bg-dark-900/60 p-3 rounded-lg border border-dark-700/60">
             <span className="text-xs text-gray-400 block">현재가</span>
             <span className="text-lg font-bold text-emerald-400 font-mono mt-0.5 block">{data.current_price}</span>
+          </div>
+          <div className="bg-dark-900/60 p-3 rounded-lg border border-dark-700/60">
+            <span className="text-xs text-gray-400 block">조회/분석 일시</span>
+            <span className="text-sm font-bold text-emerald-400 font-mono mt-1 block truncate">
+              {data.analysis_datetime || '실시간 최신 연산'}
+            </span>
           </div>
         </div>
       </div>

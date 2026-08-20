@@ -6,7 +6,7 @@ import { ValuationTab } from './ValuationTab';
 import { NewsImpactTab } from './NewsImpactTab';
 import { AIScoresTab } from './AIScoresTab';
 import { StrategyTab } from './StrategyTab';
-import { FileText, Award, BarChart3, Newspaper, Cpu, Target, Copy, Check, Download } from 'lucide-react';
+import { FileText, Award, BarChart3, Newspaper, Cpu, Target, Copy, Check, Download, Clock } from 'lucide-react';
 
 interface ReportViewProps {
   report?: AIStockReport | null;
@@ -50,7 +50,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, loading, current
   const handleCopyMarkdown = () => {
     const text = `
 # [AI 기관 리서치] ${report.target.stock_name} (${report.target.stock_code}) 종목 분석 보고서
-
+- 조회/분석 일시: ${report.target.analysis_datetime || new Date().toLocaleString()}
 - 상장시장: ${report.target.market}
 - 현재가: ${report.target.current_price}
 - 투자의견: ${report.final_conclusion.investment_grade} ${report.final_conclusion.investment_opinion}
@@ -69,11 +69,17 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, loading, current
       {/* Report Header & Action Buttons */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-dark-700 pb-4">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 font-semibold border border-blue-500/30">
               기관투자자 리서치센터 보고서
             </span>
-            <span className="text-xs text-gray-400 font-mono">출처: KIS API / DART / Gemini AI</span>
+            {report.target.analysis_datetime && (
+              <span className="text-xs px-2.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-mono font-semibold border border-emerald-500/30 flex items-center gap-1">
+                <Clock className="w-3 h-3 text-emerald-400" />
+                분석 일시: {report.target.analysis_datetime}
+              </span>
+            )}
+            <span className="text-xs text-gray-400 font-mono hidden md:inline">출처: KIS API / DART / Gemini AI</span>
           </div>
           <h2 className="text-xl font-black text-white mt-1">
             {report.target.stock_name} <span className="text-gray-400 text-sm font-mono">({report.target.stock_code})</span> AI 종합 분석 보고서
