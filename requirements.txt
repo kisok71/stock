@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+pandas
+numpy
+yfinance
+ta
+google-genai
+requests
+python-dotenv
+pydantic
+lxml
+html5lib
