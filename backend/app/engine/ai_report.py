@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from google import genai
 from google.genai import types
 from app.config import GEMINI_API_KEY
@@ -9,7 +9,8 @@ def generate_ai_stock_report(symbol: str, name: str, market: str, price: float, 
     Generates institutional research report matching all requirements.
     Uses Gemini API if key is provided, or structured algorithmic engine.
     """
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    kst = timezone(timedelta(hours=9))
+    now_str = datetime.now(kst).strftime("%Y-%m-%d %H:%M:%S")
     indicators = tech_data.get("latest", {})
     fibonacci = tech_data.get("fibonacci", {})
 
