@@ -10,7 +10,8 @@ def generate_ai_stock_report(symbol: str, name: str, market: str, price: float, 
     Uses Gemini API if key is provided, or structured algorithmic engine.
     """
     kst = timezone(timedelta(hours=9))
-    now_str = datetime.now(kst).strftime("%Y-%m-%d %H:%M:%S")
+    now_kst = datetime.now(timezone.utc).astimezone(kst)
+    now_str = now_kst.strftime("%Y-%m-%d %H:%M:%S")
     indicators = tech_data.get("latest", {})
     fibonacci = tech_data.get("fibonacci", {})
 
